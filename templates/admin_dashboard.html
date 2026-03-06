@@ -1,0 +1,156 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- Subject Management -->
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-header text-white">
+                <i class="bi bi-folder-plus me-2"></i> Manage Subjects
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('add_subject') }}" method="POST" class="mb-3">
+                    <div class="input-group">
+                        <input type="text" name="subject_name" class="form-control" placeholder="New Subject Name"
+                            required>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                </form>
+
+                <hr>
+
+                <label class="form-label fw-bold">Select Subject to View/Edit</label>
+                <form id="subjectFilterForm" method="GET">
+                    <select name="subject_id" class="form-select mb-3" onchange="this.form.submit()">
+                        <option value="">-- Choose Subject --</option>
+                        {% for s in subjects %}
+                        <option value="{{ s.id }}" {% if selected_subject_id==s.id %}selected{% endif %}>{{ s.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+
+        {% if selected_subject_id %}
+        <!-- Upload Key Image -->
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-header text-white bg-primary">
+                <i class="bi bi-lightning-charge me-2"></i> Bulk Add Sequence
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('bulk_answer_key') }}" method="POST">
+                    <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
+                    <div class="mb-3">
+                        <label class="form-label">Starting Question No.</label>
+                        <input type="number" name="start_question" value="1" min="1" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sequence (e.g., ABCDA)</label>
+                        <textarea name="bulk_answers" class="form-control" rows="3"
+                            placeholder="Type answers like ABCDA..." style="text-transform: uppercase;"
+                            required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Save All Answers</button>
+                </form>
+                <small class="text-muted d-block mt-2">Example: 'ABCD' will set Q1=A, Q2=B, Q3=C, Q4=D.</small>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i> Please select a subject to manage its answer key.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header text-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold"><i class="bi bi-grid-3x3-gap-fill me-2"></i> Live Answer Key View</span>
+                {% if selected_subject_id %}
+                <div class="d-flex gap-2">
+                    <form action="{{ url_for('clear_answer_key') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
+                        <button type="submit" class="btn btn-danger btn-sm rounded-pill px-3" {% if keys|length==0
+                            %}disabled{% endif %} onclick="return confirm('Clear ALL answers for this subject?')">
+                            <i class="bi bi-trash-fill me-1"></i> Clear Subject
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body" style="max-height: 80vh; overflow-y: auto;">
+                {% if selected_subject_id %}
+                <div class="row g-2">
+                    {% for key in keys %}
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                        <div class="answer-bubble-card p-2 text-center shadow-sm">
+                            <div class="q-num text-muted small">Q{{ key.question_number }}</div>
+                            <div class="ans-val fw-bold text-primary fs-4">{{ key.correct_option }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-clipboard2-x fs-1 d-block mb-3 text-warning"></i>
+                            <p class="fs-5">No answers added yet for this subject.</p>
+                            <p>Use the "Upload Answer Key Image" or manual forms on the left.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="p-5 border-2 border-dashed rounded-4 bg-glass-dark">
+                        <i class="bi bi-folder-symlink fs-1 d-block mb-3 text-primary animate-pulse"></i>
+                        <h3 class="fw-bold">Welcome to Answer Key Center</h3>
+                        <p class="text-muted fs-5">Please select a subject from the left panel to manage its answer key.
+                        </p>
+                        <div class="mt-4">
+                            <i class="bi bi-arrow-left-circle-fill me-2 fs-4 text-info"></i>
+                            <span>Look at "Manage Subjects" on the left</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer border-0 text-center py-3">
+                <span class="badge rounded-pill bg-info text-dark">Total Questions: {{ keys|length }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .answer-bubble-card {
+        background: rgba(15, 23, 42, 0.4);
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        transition: all 0.3s ease;
+    }
+
+    .answer-bubble-card:hover {
+        transform: translateY(-5px);
+        background: var(--primary-glow);
+        border-color: transparent;
+    }
+
+    .q-num {
+        border-bottom: 1px solid var(--glass-border);
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: var(--text-dim);
+    }
+
+    .ans-val {
+        color: var(--primary-glow);
+    }
+
+    .answer-bubble-card:hover .q-num,
+    .answer_bubble_card:hover .ans-val {
+        color: #0f172a !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 mt-4">
+        <div class="card shadow-lg border-0">
+            <div class="card-header text-center py-3 text-white">
+                <h4 class="mb-0"><i class="bi bi-camera"></i> OMR Smart Scanner (Admin)</h4>
+            </div>
+            <div class="card-body p-4">
+
+                <!-- Student & Subject Selection -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Select Student</label>
+                        <select id="student_id_select" name="student_id" class="form-select form-select-lg border-2"
+                            required>
+                            <option value="">-- Choose Student --</option>
+                            {% for s in students %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Select Subject</label>
+                        <select id="subject_id_select" name="subject_id" class="form-select form-select-lg border-2"
+                            required>
+                            <option value="">-- Choose Subject --</option>
+                            {% for s in subjects %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <script>
+                    // Sync selections to hidden fields
+                    document.getElementById('student_id_select').addEventListener('change', (e) => {
+                        document.querySelectorAll('.target_student_id').forEach(el => el.value = e.target.value);
+                    });
+                    document.getElementById('subject_id_select').addEventListener('change', (e) => {
+                        document.querySelectorAll('.target_subject_id').forEach(el => el.value = e.target.value);
+                    });
+                </script>
+
+                <hr>
+
+                <!-- Toggle between Upload and Live Camera -->
+                <ul class="nav nav-pills nav-justified mb-4" id="scannerTab" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload"
+                            type="button">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Upload Image
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera"
+                            type="button" onclick="startCamera()">
+                            <i class="bi bi-camera-fill"></i> Live Smart Scan
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="scannerTabContent">
+                    <div class="tab-pane fade show active" id="upload" role="tabpanel">
+                        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="student_id" class="target_student_id">
+                            <input type="hidden" name="subject_id" class="target_subject_id">
+
+                            <div class="mb-4 text-center">
+                                <div class="file-upload-wrapper" onclick="document.getElementById('omr_image').click()">
+                                    <div class="file-upload-design">
+                                        <i class="bi bi-cloud-arrow-up fs-1 mb-2"></i>
+                                        <h5 class="mb-1">Click to Select OMR Sheet</h5>
+                                        <p class="text-dim small mb-0" id="file-name-display">No file chosen</p>
+                                    </div>
+                                    <input type="file" id="omr_image" name="omr_image" accept="image/*"
+                                        capture="environment" required style="display: none;"
+                                        onchange="updateFileName(this)">
+                                </div>
+                            </div>
+
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-success btn-lg shadow rounded-pill py-3">
+                                    <i class="bi bi-check2-circle"></i> Evaluate Uploaded Sheet
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Live Camera Scan Tab -->
+                    <div class="tab-pane fade" id="camera" role="tabpanel">
+                        <div class="text-center">
+                            <div id="camera_container" class="bg-dark rounded overflow-hidden mb-3"
+                                style="position: relative; min-height: 400px;">
+                                <video id="video" width="100%" height="auto" autoplay playsinline
+                                    class="rounded"></video>
+                                <canvas id="canvas" style="display:none;"></canvas>
+                                <!-- Moving Scan Line Animation -->
+                                <div class="scan-line"></div>
+                                <!-- Overlay for alignment -->
+                                <div
+                                    style="position: absolute; top: 10%; left: 10%; right: 10%; bottom: 10%; border: 2px dashed rgba(0,255,0,0.5); pointer-events: none; border-radius: 15px;">
+                                    <span class="text-white small"
+                                        style="background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; position: absolute; top: -15px; left: 50%; transform: translateX(-50%);">Align
+                                        Sheet Within Frame</span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button id="snap" class="btn btn-primary btn-lg"><i class="bi bi-circle-fill"></i>
+                                    Capture & Evaluate</button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="stopCamera()">Stop
+                                    Camera</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="card-footer border-0 p-3 text-center d-flex justify-content-center gap-4">
+                <small><i class="bi bi-info-circle"></i> Ensure the OMR sheet is flat and well-lit for maximum
+                    accuracy.</small>
+                <a href="{{ url_for('admin_answer_key') }}" class="text-warning text-decoration-none fw-bold small">
+                    <i class="bi bi-key-fill"></i> Manage Answer Keys
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let video = document.getElementById('video');
+    let canvas = document.getElementById('canvas');
+    let stream = null;
+
+    const studentSelect = document.getElementById('student_id_select');
+    const subjectSelect = document.getElementById('subject_id_select');
+
+    // Sync selections to hidden fields
+    function syncIds() {
+        document.querySelectorAll('.target_student_id').forEach(el => el.value = studentSelect.value);
+        document.querySelectorAll('.target_subject_id').forEach(el => el.value = subjectSelect.value);
+    }
+
+    studentSelect.addEventListener('change', syncIds);
+    subjectSelect.addEventListener('change', syncIds);
+
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            alert("Error accessing camera: " + err);
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+        }
+    }
+
+    document.getElementById('snap').addEventListener('click', () => {
+        const studentId = studentSelect.value;
+        const subjectId = subjectSelect.value;
+
+        if (!studentId || !subjectId) {
+            alert("Please select both student and subject!");
+            return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            const formData = new FormData();
+            formData.append('omr_image', blob, 'capture.jpg');
+            formData.append('student_id', studentId);
+            formData.append('subject_id', subjectId);
+
+            fetch('{{ url_for("upload_omr") }}', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    alert("Evaluation failed. Try again.");
+                }
+            });
+        }, 'image/jpeg', 0.95);
+
+        stopCamera();
+    });
+
+    document.getElementById('uploadForm').onsubmit = function () {
+        if (!studentSelect.value || !subjectSelect.value) {
+            alert("Please select both student and subject.");
+            return false;
+        }
+        syncIds();
+    };
+    function updateFileName(input) {
+        const fileName = input.files[0] ? input.files[0].name : "No file chosen";
+        document.getElementById('file-name-display').innerText = fileName;
+        document.getElementById('file-name-display').classList.add('text-primary');
+        document.querySelector('.file-upload-wrapper').classList.add('active');
+    }
+
+    // Drag and Drop Logic
+    const dropArea = document.querySelector('.file-upload-wrapper');
+    const fileInput = document.getElementById('omr_image');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('drag-over'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('drag-over'), false);
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        updateFileName(fileInput);
+    }, false);
+</script>
+
+<style>
+    .nav-pills .nav-link.active {
+        background-color: #0d6efd;
+    }
+
+    .nav-pills .nav-link {
+        color: var(--text-dim);
+        font-weight: bold;
+        border: 1px solid var(--glass-border);
+        margin: 0 5px;
+    }
+
+    #video {
+        transform: scaleX(1);
+    }
+
+    .file-upload-wrapper.drag-over {
+        background: rgba(56, 189, 248, 0.1) !important;
+        border-color: var(--primary-glow) !important;
+        transform: scale(1.02);
+    }
+
+    .file-upload-wrapper.active {
+        border-style: solid;
+        border-color: var(--primary-glow);
+    }
+</style>
+{% endblock %}

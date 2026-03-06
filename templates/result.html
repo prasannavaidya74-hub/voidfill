@@ -1,0 +1,56 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row mt-4">
+    <!-- Result Summary -->
+    <div class="col-md-5 mb-4">
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-header text-white text-center">
+                <h4 class="mb-0">Evaluation Result</h4>
+            </div>
+            <div class="card-body text-center">
+                <h5 class="text-muted mb-0">Student: <span class="text-white">{{ result.student.name }}</span></h5>
+                <h6 class="text-muted mb-3">Subject: <span class="text-white">{{ result.subject_rel.name }}</span></h6>
+
+                <h5 class="card-title text-muted mb-1">Score</h5>
+                <h1 class="display-3 fw-bold text-primary">{{ result.score }} <span class="fs-4 text-muted">/ {{
+                        result.total_questions }}</span></h1>
+
+                <h5 class="mt-4 mb-1 text-muted">Percentage</h5>
+                <h2 class="fw-bold">{{ "%.2f"|format(result.percentage) }}%</h2>
+
+                <h5 class="mt-4 mb-2 text-muted">Status</h5>
+                {% if result.status == 'Pass' %}
+                <h2 class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> PASS</h2>
+                {% else %}
+                <h2 class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> FAIL</h2>
+                {% endif %}
+
+                <hr class="mt-4">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">Back</a>
+                    <a href="{{ url_for('download_pdf', result_id=result.id) }}" class="btn btn-danger">
+                        PDF Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Display -->
+    <div class="col-md-7">
+        <div class="card shadow-lg border-0">
+            <div class="card-header text-white">
+                <h5 class="mb-0">Processed OMR Sheet</h5>
+            </div>
+            <div class="card-body text-center">
+                <p class="text-sm text-muted mb-3"><span style="color: green; font-weight: bold;">Green</span> = Correct
+                    | <span style="color: red; font-weight: bold;">Red</span> = Wrong | <span
+                        style="color: blue; font-weight: bold;">Blue</span> = Correct Answer Indication</p>
+                <img src="{{ url_for('static', filename='processed/' + result.processed_image) }}" alt="Processed OMR"
+                    class="img-fluid omr-img">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-header text-white">
+                <i class="bi bi-clock-history me-2"></i> Evaluation History
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover result-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Subject</th>
+                                <th>Score</th>
+                                <th>Percentage</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in results %}
+                            <tr>
+                                <td>{{ r.date.strftime('%Y-%m-%d %H:%M') if r.date else 'N/A' }}</td>
+                                <td><span class="badge bg-secondary">{{ r.subject_rel.name }}</span></td>
+                                <td><strong>{{ r.score }} / {{ r.total_questions }}</strong></td>
+                                <td>{{ "%.2f"|format(r.percentage) }}%</td>
+                                <td>
+                                    {% if r.status == 'Pass' %}
+                                    <span class="badge bg-success">Pass</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Fail</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('view_result', result_id=r.id) }}"
+                                        class="btn btn-sm btn-outline-info">View Details</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="bi bi-clipboard2-x fs-1 d-block mb-3 text-warning"></i>
+                                    No evaluations found. Results will appear here after the admin evaluates your OMR
+                                    sheet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+opencv-python==4.8.1.78
+numpy==1.26.0
+Werkzeug==3.0.0
+reportlab==4.0.5
+imutils==0.5.4

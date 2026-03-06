@@ -1,0 +1,146 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="hero-split">
+    <!-- Top Section: 3D Animation -->
+    <div class="hero-visual-section">
+        <div id="hero-3d-container" class="animate-fade-in shadow-lg"></div>
+    </div>
+
+    <!-- Bottom Section: Text Content -->
+    <div class="hero-text-section animate-fade-in">
+        <!-- Removed AI badge as per user request -->
+        <h1 class="display-4 text-primary fw-bold">OMR Sheet <br> Detection & Marking</h1>
+        <p class="lead text-muted mt-4">
+            Upload your OMR sheets, instantly evaluate answers, and track performance with the
+            <span class="text-white fw-bold">VOID FILL</span> intelligence system.
+        </p>
+
+        <div class="mt-5 d-flex justify-content-center align-items-center gap-3">
+            {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary btn-lg px-4 py-3 rounded-pill">
+                <i class="bi bi-speedometer2 me-2"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_answer_key') }}" class="btn btn-warning btn-lg px-4 py-3 rounded-pill fw-bold">
+                <i class="bi bi-key-fill me-2"></i> Manage Answer Keys
+            </a>
+            <a href="{{ url_for('upload_omr') }}" class="btn btn-info btn-lg px-4 py-3 rounded-pill">
+                <i class="bi bi-cloud-arrow-up-fill me-2"></i> Upload OMR
+            </a>
+            {% else %}
+            <a href="{{ url_for('student_login') }}" class="btn btn-primary btn-lg px-5 py-3 rounded-pill">
+                <i class="bi bi-person-badge me-2"></i> Student Portal
+            </a>
+            <a href="{{ url_for('admin_login') }}" class="btn btn-outline-secondary btn-lg px-5 py-3 rounded-pill">
+                <i class="bi bi-shield-lock me-2"></i> Admin Portal
+            </a>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function initHero3D() {
+        const container = document.getElementById('hero-3d-container');
+        if (!container) return;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Particle System for Background
+        const particlesGeom = new THREE.BufferGeometry();
+        const particlesCount = 800; // Increased
+        const posArray = new Float32Array(particlesCount * 3);
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 20;
+        }
+        particlesGeom.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.04,
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.6
+        });
+        const particlesMesh = new THREE.Points(particlesGeom, particlesMat);
+        scene.add(particlesMesh);
+
+        // OMR Sheet Model
+        const geometry = new THREE.PlaneGeometry(5, 6.5); // Scaled down
+        const material = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.1,
+            shininess: 120
+        });
+        const sheet = new THREE.Mesh(geometry, material);
+        sheet.rotation.x = -Math.PI / 6;
+        scene.add(sheet);
+
+        // Sheet Border
+        const edges = new THREE.EdgesGeometry(geometry);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4 }));
+        sheet.add(line);
+
+        // Grid dots
+        for (let i = -2; i <= 2; i += 0.6) {
+            for (let j = -2.8; j <= 2.8; j += 0.7) {
+                const bubbleGeom = new THREE.CircleGeometry(0.12, 16);
+                const bubbleMat = new THREE.MeshBasicMaterial({
+                    color: 0x38bdf8,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const bubble = new THREE.Mesh(bubbleGeom, bubbleMat);
+                bubble.position.set(i, j, 0.05);
+                sheet.add(bubble);
+            }
+        }
+
+        // Scanning Line
+        const lineGeom = new THREE.PlaneGeometry(5.2, 0.2);
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+        const scanLine = new THREE.Mesh(lineGeom, lineMat);
+        scanLine.position.z = 0.1;
+        sheet.add(scanLine);
+
+        // Lights
+        const light = new THREE.PointLight(0x38bdf8, 3, 30);
+        light.position.set(5, 5, 8);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+        camera.position.z = 8.5; // Moved closer but smaller content
+
+        let scanDir = 1;
+        function animate() {
+            requestAnimationFrame(animate);
+            sheet.rotation.y = Math.sin(Date.now() * 0.0006) * 0.2;
+            sheet.position.y = Math.sin(Date.now() * 0.001) * 0.15;
+            particlesMesh.rotation.y += 0.0005;
+
+            scanLine.position.y += 0.045 * scanDir;
+            if (Math.abs(scanLine.position.y) > 3.25) scanDir *= -1;
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        animate();
+    }
+
+    document.addEventListener('DOMContentLoaded', initHero3D);
+</script>
+{% endblock %}

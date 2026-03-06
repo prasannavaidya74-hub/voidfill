@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMR System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Three.js for 3D Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <!-- Splash Screen Intro -->
+    <div id="splash-screen">
+        <div id="splash-canvas-container"></div>
+        <div class="splash-content">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="splash-logo">
+            <h2 class="splash-title">VOID FILL</h2>
+            <div class="splash-loader"></div>
+        </div>
+    </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="40" height="40"
+                    class="me-2 rounded-circle"
+                    style="border: 2px solid var(--primary-glow); padding: 2px; background: rgba(255,255,255,0.1);">
+                VOID FILL OMR
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if session.get('role') == 'admin' %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link text-warning fw-bold"
+                            href="{{ url_for('admin_answer_key') }}">
+                            <i class="bi bi-key-fill me-1"></i> Answer Key
+                        </a></li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn btn-outline-info rounded-pill px-4 text-white hover-glow"
+                            href="{{ url_for('upload_omr') }}">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload OMR
+                        </a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                    {% elif session.get('role') == 'student' %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('student_dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                    {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('student_login') }}">Student</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_login') }}">Admin</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-5 animate-fade-in">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const splash = document.getElementById('splash-screen');
+
+            // Check if user has already seen intro this session
+            if (sessionStorage.getItem('hasSeenIntro')) {
+                splash.style.display = 'none';
+            } else {
+                init3DSplash();
+            }
+        });
+
+        function init3DSplash() {
+            const container = document.getElementById('splash-canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const geometry = new THREE.DodecahedronGeometry(2, 0);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            const coreGeom = new THREE.SphereGeometry(0.5, 32, 32);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.6 });
+            const core = new THREE.Mesh(coreGeom, coreMat);
+            scene.add(core);
+
+            camera.position.z = 10; // Start back
+            let isZooming = false;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                mesh.rotation.x += 0.01;
+                mesh.rotation.y += 0.01;
+
+                const time = Date.now() * 0.002;
+                core.scale.set(1 + Math.sin(time) * 0.2, 1 + Math.sin(time) * 0.2, 1 + Math.sin(time) * 0.2);
+
+                // Cinematic camera zoom-through
+                if (isZooming) {
+                    camera.position.z -= 0.5; // Fly forward fast
+                    mesh.scale.set(mesh.scale.x + 0.15, mesh.scale.y + 0.15, mesh.scale.z + 0.15);
+                    mesh.rotation.z += 0.05;
+                } else if (camera.position.z > 5) {
+                    camera.position.z -= 0.05; // Initial approach
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+
+            // Trigger the Zoom-Through after 2.5s
+            setTimeout(() => {
+                isZooming = true;
+                const splash = document.getElementById('splash-screen');
+                splash.classList.add('splash-hidden');
+                sessionStorage.setItem('hasSeenIntro', 'true');
+
+                // Remove splash completely after animation ends
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 1500);
+            }, 2500);
+        }
+    </script>
+</body>
+
+</html>
