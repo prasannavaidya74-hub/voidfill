@@ -267,7 +267,23 @@ def admin_dashboard():
     if selected_subject_id:
         keys = AnswerKey.query.filter_by(subject_id=selected_subject_id).order_by(AnswerKey.question_number).all()
         
-    return render_template('admin_dashboard.html', subjects=subjects, keys=keys, selected_subject_id=selected_subject_id)
+    # Gather Admin Dashboard Metrics
+    total_students = Student.query.count()
+    total_evaluations = Result.query.count()
+    
+    results_list = Result.query.all()
+    avg_score = 0
+    if total_evaluations > 0:
+        total_percentage = sum(r.percentage for r in results_list)
+        avg_score = total_percentage / total_evaluations
+        
+    return render_template('admin_dashboard.html', 
+                            subjects=subjects, 
+                            keys=keys, 
+                            selected_subject_id=selected_subject_id,
+                            total_students=total_students,
+                            total_evaluations=total_evaluations,
+                            avg_score=avg_score)
 
 @app.route('/admin/answer_key')
 def admin_answer_key():
@@ -296,7 +312,19 @@ def add_subject():
 @login_required
 def student_dashboard():
     results = Result.query.filter_by(student_id=current_user.id).order_by(Result.date.desc()).all()
-    return render_template('student_dashboard.html', results=results)
+    
+    total_exams = len(results)
+    avg_score = 0
+    if total_exams > 0:
+        avg_score = sum(r.percentage for r in results) / total_exams
+        
+    passed_exams = sum(1 for r in results if r.status == 'Pass')
+        
+    return render_template('student_dashboard.html', 
+                            results=results,
+                            total_exams=total_exams,
+                            avg_score=avg_score,
+                            passed_exams=passed_exams)
 
 @app.route('/admin/bulk_key', methods=['POST'])
 def bulk_answer_key():
