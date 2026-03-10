@@ -147,13 +147,33 @@
     subjectSelect.addEventListener('change', syncIds);
 
     async function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Live Smart Scan requires an HTTPS connection. Switching to your native camera for capture instead.");
+            // Switch back to upload tab visually
+            const uploadTab = document.getElementById('upload-tab');
+            if (uploadTab) {
+                const tab = new bootstrap.Tab(uploadTab);
+                tab.show();
+            }
+            // Trigger the native file input camera
+            document.getElementById('omr_image').click();
+            return;
+        }
         try {
             stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
             });
             video.srcObject = stream;
         } catch (err) {
-            alert("Error accessing camera: " + err);
+            alert("Camera access was denied or is not supported. Switching to native camera.");
+            // Switch back to upload tab visually
+            const uploadTab = document.getElementById('upload-tab');
+            if (uploadTab) {
+                const tab = new bootstrap.Tab(uploadTab);
+                tab.show();
+            }
+            // Trigger the native file input camera
+            document.getElementById('omr_image').click();
         }
     }
 

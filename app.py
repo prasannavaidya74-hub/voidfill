@@ -4,10 +4,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from config import Config
-from omr_processor import process_omr
+from omr_processor import process_omr, extract_answers
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import io
+import smtplib
+from email.message import EmailMessage
+import random
+import time
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -32,7 +36,7 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    results = db.relationship('Result', backref='student', lazy=True)
+    results = db.relationship('Result', backref='student', lazy=True, cascade="all, delete-orphan")
 
 class AnswerKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -88,6 +92,51 @@ def admin_login():
             
     return render_template('admin_login.html')
 
+def send_otp_email(recipient, otp):
+    try:
+        msg = EmailMessage()
+        msg.set_content(f"Your OTP for VoidFill registration is: {otp}\n\nPlease enter this code to verify your account.")
+        msg['Subject'] = 'Registration OTP'
+        msg['From'] = f"VoidFill <{app.config['MAIL_USERNAME']}>"
+        msg['To'] = recipient
+
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        if app.config.get('MAIL_USE_TLS'):
+            server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
+
+def send_result_email(recipient, student_name, subject_name, percentage, result_link):
+    try:
+        msg = EmailMessage()
+        msg.set_content(
+            f"Hello {student_name},\n\n"
+            f"Your OMR sheet for the subject '{subject_name}' has been graded!\n\n"
+            f"Your Score: {percentage:.2f}%\n\n"
+            f"You can view your detailed results and download the PDF report here: {result_link}\n"
+            f"(Note: You may be asked to log in first.)\n\n"
+            f"Best regards,\nVoidFill OMR System"
+        )
+        msg['Subject'] = f'Your Results for {subject_name} are ready!'
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = recipient
+
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        if app.config.get('MAIL_USE_TLS'):
+            server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send result email: {e}")
+        return False
+
 @app.route('/student_register', methods=['GET', 'POST'])
 def student_register():
     if request.method == 'POST':
@@ -95,19 +144,60 @@ def student_register():
         email = request.form['email']
         password = request.form['password']
         
-        hashed_pw = generate_password_hash(password)
-        
-        try:
-            new_student = Student(name=name, email=email, password=hashed_pw)
-            db.session.add(new_student)
-            db.session.commit()
-            flash('Registration successful! Please login.', 'success')
+        # Check if email already exists
+        existing_student = Student.query.filter_by(email=email).first()
+        if existing_student:
+            flash('Email is already registered. Please login.', 'warning')
             return redirect(url_for('student_login'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Database exception: {e}', 'danger')
+            
+        # Generate OTP
+        otp = str(random.randint(100000, 999999))
+        
+        # Send Email
+        success = send_otp_email(email, otp)
+        
+        if success:
+            session['reg_name'] = name
+            session['reg_email'] = email
+            session['reg_password'] = generate_password_hash(password)
+            session['reg_otp'] = otp
+            flash('An OTP has been sent to your email. Please verify.', 'info')
+            return redirect(url_for('verify_otp'))
+        else:
+            flash('Failed to send OTP email. Contact admin or check mail configuration in config.py', 'danger')
             
     return render_template('student_register.html')
+
+@app.route('/verify_otp', methods=['GET', 'POST'])
+def verify_otp():
+    if 'reg_email' not in session:
+        return redirect(url_for('student_register'))
+        
+    if request.method == 'POST':
+        user_otp = request.form.get('otp')
+        if user_otp == session.get('reg_otp'):
+            try:
+                new_student = Student(
+                    name=session['reg_name'],
+                    email=session['reg_email'],
+                    password=session['reg_password']
+                )
+                db.session.add(new_student)
+                db.session.commit()
+                
+                # Clear session
+                for key in ['reg_name', 'reg_email', 'reg_password', 'reg_otp']:
+                    session.pop(key, None)
+                    
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('student_login'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Database exception: {e}', 'danger')
+        else:
+            flash('Invalid OTP. Please try again.', 'danger')
+            
+    return render_template('verify_otp.html')
 
 @app.route('/student_login', methods=['GET', 'POST'])
 def student_login():
@@ -169,7 +259,23 @@ def admin_dashboard():
     if selected_subject_id:
         keys = AnswerKey.query.filter_by(subject_id=selected_subject_id).order_by(AnswerKey.question_number).all()
         
-    return render_template('admin_dashboard.html', subjects=subjects, keys=keys, selected_subject_id=selected_subject_id)
+    # Gather Admin Dashboard Metrics
+    total_students = Student.query.count()
+    total_evaluations = Result.query.count()
+    
+    results = Result.query.all()
+    avg_score = 0
+    if total_evaluations > 0:
+        total_percentage = sum(r.percentage for r in results)
+        avg_score = total_percentage / total_evaluations
+        
+    return render_template('admin_dashboard.html', 
+                            subjects=subjects, 
+                            keys=keys, 
+                            selected_subject_id=selected_subject_id,
+                            total_students=total_students,
+                            total_evaluations=total_evaluations,
+                            avg_score=avg_score)
 
 @app.route('/admin/answer_key')
 def admin_answer_key():
@@ -200,7 +306,19 @@ def student_dashboard():
         return redirect(url_for('student_login'))
         
     results = Result.query.filter_by(student_id=session['student_id']).order_by(Result.date.desc()).all()
-    return render_template('student_dashboard.html', results=results)
+    
+    total_exams = len(results)
+    avg_score = 0
+    if total_exams > 0:
+        avg_score = sum(r.percentage for r in results) / total_exams
+        
+    passed_exams = sum(1 for r in results if r.status == 'Pass')
+        
+    return render_template('student_dashboard.html', 
+                            results=results,
+                            total_exams=total_exams,
+                            avg_score=avg_score,
+                            passed_exams=passed_exams)
 
 @app.route('/admin/bulk_key', methods=['POST'])
 def bulk_answer_key():
@@ -288,7 +406,6 @@ def upload_omr():
             
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            import time
             filename = f"{int(time.time())}_{filename}"
             
             upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -334,6 +451,14 @@ def upload_omr():
                 flash(f'Database failure: {e}', 'danger')
                 return redirect(request.url)
                 
+            # Send Email Notification to Student
+            student = Student.query.get(student_id)
+            subject = Subject.query.get(subject_id)
+            if student and subject:
+                # generate the full link for the exact result
+                result_link = url_for('view_result', result_id=result_id, _external=True)
+                send_result_email(student.email, student.name, subject.name, percentage, result_link)
+                
             flash(f'Successfully evaluated OMR for {new_result.student.name} ({new_result.subject_rel.name})!', 'success')
             return redirect(url_for('view_result', result_id=result_id))
             
@@ -362,7 +487,6 @@ def upload_key_image():
         return redirect(url_for('admin_dashboard', subject_id=subject_id))
         
     filename = secure_filename(file.filename)
-    import time
     filename = f"key_{int(time.time())}_{filename}"
     upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(upload_path)
@@ -371,15 +495,15 @@ def upload_key_image():
     # I'll update omr_processor.py to have an extract_answers function.
     
     try:
-        from omr_processor import extract_answers
         extracted_answers = extract_answers(upload_path)
         
         # Clear existing keys for this subject
         AnswerKey.query.filter_by(subject_id=subject_id).delete()
         
         for q_num, opt in extracted_answers.items():
-            new_key = AnswerKey(subject_id=subject_id, question_number=q_num, correct_option=opt)
-            db.session.add(new_key)
+            if opt is not None:
+                new_key = AnswerKey(subject_id=subject_id, question_number=q_num, correct_option=opt)
+                db.session.add(new_key)
             
         db.session.commit()
         flash(f'Answer key extracted and saved for subject!', 'success')
@@ -406,10 +530,13 @@ def view_result(result_id):
 
 @app.route('/download_pdf/<int:result_id>')
 def download_pdf(result_id):
-    if session.get('role') != 'student':
-        return redirect(url_for('student_login'))
+    if session.get('role') not in ['student', 'admin']:
+        return redirect(url_for('index'))
         
-    result = Result.query.filter_by(id=result_id, student_id=session['student_id']).first()
+    if session.get('role') == 'student':
+        result = Result.query.filter_by(id=result_id, student_id=session['student_id']).first()
+    else:
+        result = Result.query.filter_by(id=result_id).first()
     
     if not result:
         flash("Result not found.", "danger")

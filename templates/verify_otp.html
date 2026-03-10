@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card mt-5 shadow border-0">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h4 class="mb-0">Verify OTP</h4>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-center text-muted mb-4">An OTP has been sent to <strong>{{ session.get('reg_email')
+                        }}</strong>. Please check your inbox (and spam folder).</p>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Enter 6-digit OTP</label>
+                        <input type="text" name="otp" class="form-control form-control-lg text-center letter-spacing-2"
+                            required maxlength="6" pattern="\d{6}" placeholder="------">
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100 shadow rounded-pill">Verify &
+                        Register</button>
+
+                    <div class="mt-4 text-center">
+                        <a href="{{ url_for('student_register') }}" class="text-decoration-none text-muted small"><i
+                                class="bi bi-arrow-left"></i> Change email address</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .letter-spacing-2 {
+        letter-spacing: 0.5rem;
+    }
+</style>
+{% endblock %}

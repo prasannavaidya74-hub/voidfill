@@ -1,51 +1,139 @@
 {% extends 'layout.html' %}
 
 {% block content %}
+<!-- Student Welcome and Metrics Dash -->
+<div class="row align-items-center mb-5 mt-2">
+    <div class="col-md-8 mb-3 mb-md-0">
+        <h2 class="fw-bold m-0 text-white"><i class="bi bi-mortarboard-fill me-3 text-primary"></i>My Learning Dashboard
+        </h2>
+        <p class="text-muted mt-2 mb-0 fs-5">Welcome back, {{ session.get('student_name', 'Student') }}! Track your
+            progress and view past evaluations.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Total Exams Card -->
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4 position-relative overflow-hidden">
+            <div class="position-absolute top-0 end-0 p-3 opacity-25">
+                <i class="bi bi-journal-text display-1 text-primary"></i>
+            </div>
+            <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle p-3 bg-primary bg-opacity-10 me-3">
+                    <i class="bi bi-journal-check text-primary fs-3"></i>
+                </div>
+                <h5 class="text-muted m-0 fw-medium">Papers Evaluated</h5>
+            </div>
+            <h2 class="fw-bold display-4 mb-0 text-white mt-2">{{ total_exams | default(0) }}</h2>
+        </div>
+    </div>
+
+    <!-- Average Score Card -->
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4 position-relative overflow-hidden">
+            <div class="position-absolute top-0 end-0 p-3 opacity-25">
+                <i class="bi bi-graph-up-arrow display-1 text-info"></i>
+            </div>
+            <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle p-3 bg-info bg-opacity-10 me-3">
+                    <i class="bi bi-bar-chart-fill text-info fs-3"></i>
+                </div>
+                <h5 class="text-muted m-0 fw-medium">Global Average Score</h5>
+            </div>
+            <h2 class="fw-bold display-4 mb-0 text-white mt-2">{{ "%.1f"|format(avg_score | default(0)) }}%</h2>
+        </div>
+    </div>
+
+    <!-- Pass Rate Card -->
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4 position-relative overflow-hidden">
+            <div class="position-absolute top-0 end-0 p-3 opacity-25">
+                <i class="bi bi-trophy display-1 text-warning"></i>
+            </div>
+            <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle p-3 bg-warning bg-opacity-10 me-3">
+                    <i class="bi bi-award-fill text-warning fs-3"></i>
+                </div>
+                <h5 class="text-muted m-0 fw-medium">Total Subjects Passed</h5>
+            </div>
+            <h2 class="fw-bold display-4 mb-0 text-white mt-2">{{ passed_exams | default(0) }} <span
+                    class="fs-5 text-muted fw-normal">/ {{ total_exams | default(0) }}</span></h2>
+        </div>
+    </div>
+</div>
 
 <div class="row">
     <div class="col-12">
-        <div class="card shadow-lg border-0 mb-4">
-            <div class="card-header text-white">
-                <i class="bi bi-clock-history me-2"></i> Evaluation History
+        <div class="card shadow-lg border-0 mb-4 bg-glass-dark">
+            <div class="card-header text-white fs-5 fw-bold bg-transparent border-bottom border-secondary py-3">
+                <i class="bi bi-clock-history text-info me-2"></i> Evaluation History
             </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover result-table">
-                        <thead>
+            <div class="card-body p-0">
+                <div class="table-responsive w-100 custom-scrollbar">
+                    <table class="table table-hover result-table m-0" style="min-width: 800px;">
+                        <thead class="bg-dark bg-opacity-50">
                             <tr>
-                                <th>Date</th>
-                                <th>Subject</th>
-                                <th>Score</th>
-                                <th>Percentage</th>
-                                <th>Status</th>
-                                <th>Action</th>
+                                <th class="border-0 py-3 ps-4">Date & Time</th>
+                                <th class="border-0 py-3">Subject</th>
+                                <th class="border-0 py-3 text-center">Score</th>
+                                <th class="border-0 py-3 text-center">Percentage</th>
+                                <th class="border-0 py-3 text-center">Status</th>
+                                <th class="border-0 py-3 text-end pe-4">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for r in results %}
-                            <tr>
-                                <td>{{ r.date.strftime('%Y-%m-%d %H:%M') if r.date else 'N/A' }}</td>
-                                <td><span class="badge bg-secondary">{{ r.subject_rel.name }}</span></td>
-                                <td><strong>{{ r.score }} / {{ r.total_questions }}</strong></td>
-                                <td>{{ "%.2f"|format(r.percentage) }}%</td>
-                                <td>
-                                    {% if r.status == 'Pass' %}
-                                    <span class="badge bg-success">Pass</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Fail</span>
-                                    {% endif %}
+                            <tr class="align-middle">
+                                <td class="ps-4 py-3">
+                                    <div class="text-white fw-medium">{{ r.date.strftime('%b %d, %Y') if r.date else
+                                        'N/A' }}</div>
+                                    <small class="text-muted">{{ r.date.strftime('%I:%M %p') if r.date else ''
+                                        }}</small>
                                 </td>
                                 <td>
+                                    <span
+                                        class="badge bg-secondary bg-opacity-25 text-white border border-secondary px-3 py-2 rounded-pill text-nowrap">
+                                        <i class="bi bi-book me-1"></i> {{ r.subject_rel.name }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="fs-5 text-info">{{ r.score }}</strong>
+                                    <span class="text-muted mx-1">/</span>
+                                    <span class="text-muted">{{ r.total_questions }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-inline-flex align-items-center justify-content-center p-2 rounded-3 {% if r.percentage >= 80 %}bg-success{% elif r.percentage >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %} bg-opacity-10 border {% if r.percentage >= 80 %}border-success{% elif r.percentage >= 40 %}border-warning{% else %}border-danger{% endif %} text-white"
+                                        style="min-width: 80px;">
+                                        <span class="fw-bold">{{ "%.1f"|format(r.percentage) }}%</span>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if r.status == 'Pass' %}
+                                    <span
+                                        class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-2 rounded-pill"><i
+                                            class="bi bi-check-circle-fill me-1"></i> PASS</span>
+                                    {% else %}
+                                    <span
+                                        class="badge bg-danger bg-opacity-25 text-danger border border-danger px-3 py-2 rounded-pill"><i
+                                            class="bi bi-x-circle-fill me-1"></i> FAIL</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
                                     <a href="{{ url_for('view_result', result_id=r.id) }}"
-                                        class="btn btn-sm btn-outline-info">View Details</a>
+                                        class="btn btn-sm btn-outline-info rounded-pill px-3 py-1 fw-medium hover-glow text-nowrap">
+                                        View Details <i class="bi bi-arrow-right-short ms-1 pt-1"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-5">
-                                    <i class="bi bi-clipboard2-x fs-1 d-block mb-3 text-warning"></i>
-                                    No evaluations found. Results will appear here after the admin evaluates your OMR
-                                    sheet.
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="bi bi-journal-x text-muted opacity-50 display-1 d-block mb-3"></i>
+                                        <h4 class="text-white">No evaluations yet!</h4>
+                                        <p class="text-muted mb-0">Your evaluated OMR sheets will appear here once
+                                            processed by an admin.</p>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -56,4 +144,28 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Styling scrollbar for tables */
+    .custom-scrollbar::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .hover-glow:hover {
+        box-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
+    }
+</style>
 {% endblock %}

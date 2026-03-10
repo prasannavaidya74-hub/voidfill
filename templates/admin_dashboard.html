@@ -2,12 +2,68 @@
 
 {% block content %}
 
-<div class="row">
-    <div class="col-md-4">
+<!-- Admin Welcome and Metrics Dash -->
+<div class="row align-items-center mb-5">
+    <div class="col-12 col-md-6 mb-3 mb-md-0 text-center text-md-start">
+        <h2 class="fw-bold m-0"><i class="bi bi-speedometer2 me-2 text-primary"></i>Admin Control Panel</h2>
+        <p class="text-muted mt-1 mb-0">Manage subjects, configure answer keys, and monitor evaluations across all
+            students.</p>
+    </div>
+    <div class="col-12 col-md-6 text-center text-md-end">
+        <a href="{{ url_for('upload_omr') }}"
+            class="btn btn-primary rounded-pill px-4 hover-glow fw-bold shadow-sm w-100 w-md-auto">
+            <i class="bi bi-cloud-arrow-up-fill me-2"></i>Evaluate New OMR Sheet
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="rounded-circle p-3 bg-primary bg-opacity-10">
+                    <i class="bi bi-people-fill text-primary fs-3"></i>
+                </div>
+                <span class="badge bg-success rounded-pill">+ Active Users</span>
+            </div>
+            <h5 class="text-muted mt-2 fw-medium mb-1">Total Students Enrolled</h5>
+            <h2 class="fw-bold display-5 mb-0 text-white">{{ total_students | default(0) }}</h2>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="rounded-circle p-3 bg-info bg-opacity-10">
+                    <i class="bi bi-file-earmark-check-fill text-info fs-3"></i>
+                </div>
+                <span class="badge bg-primary rounded-pill">Total Papers</span>
+            </div>
+            <h5 class="text-muted mt-2 fw-medium mb-1">OMR Evaluations Processed</h5>
+            <h2 class="fw-bold display-5 mb-0 text-white">{{ total_evaluations | default(0) }}</h2>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card bg-glass-dark border-0 shadow-lg h-100 p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="rounded-circle p-3 bg-warning bg-opacity-10">
+                    <i class="bi bi-graph-up text-warning fs-3"></i>
+                </div>
+                <span class="badge bg-white text-dark rounded-pill">Global Avg</span>
+            </div>
+            <h5 class="text-muted mt-2 fw-medium mb-1">Average Student Score</h5>
+            <h2 class="fw-bold display-5 mb-0 text-white">{{ "%.1f"|format(avg_score | default(0)) }}%</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row d-flex flex-column-reverse flex-lg-row">
+    <div class="col-12 col-lg-4 mb-4">
         <!-- Subject Management -->
-        <div class="card shadow-lg border-0 mb-4">
-            <div class="card-header text-white">
-                <i class="bi bi-folder-plus me-2"></i> Manage Subjects
+        <div class="card shadow-lg border-0 h-100 bg-glass-dark">
+            <div class="card-header text-white fs-5 fw-bold bg-transparent border-bottom border-secondary">
+                <i class="bi bi-folder-plus text-primary me-2"></i> Manage Subjects
             </div>
             <div class="card-body">
                 <form action="{{ url_for('add_subject') }}" method="POST" class="mb-3">
@@ -35,9 +91,9 @@
 
         {% if selected_subject_id %}
         <!-- Upload Key Image -->
-        <div class="card shadow-lg border-0 mb-4">
-            <div class="card-header text-white bg-primary">
-                <i class="bi bi-lightning-charge me-2"></i> Bulk Add Sequence
+        <div class="card shadow-lg border-0 mb-4 bg-glass-dark mt-4">
+            <div class="card-header text-white fs-5 fw-bold bg-transparent border-bottom border-secondary">
+                <i class="bi bi-lightning-charge text-warning me-2"></i> Bulk Add Sequence
             </div>
             <div class="card-body">
                 <form action="{{ url_for('bulk_answer_key') }}" method="POST">
@@ -65,92 +121,108 @@
         {% endif %}
     </div>
 
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0">
-            <div class="card-header text-white d-flex justify-content-between align-items-center py-3">
-                <span class="fw-bold"><i class="bi bi-grid-3x3-gap-fill me-2"></i> Live Answer Key View</span>
+    <div class="col-12 col-lg-8 mb-4">
+        <div class="card shadow-lg border-0 h-100 bg-glass-dark">
+            <div
+                class="card-header text-white d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom border-secondary">
+                <span class="fs-5 fw-bold"><i class="bi bi-grid-3x3-gap-fill text-info me-2"></i> Live Answer Key
+                    View</span>
                 {% if selected_subject_id %}
-                <div class="d-flex gap-2">
-                    <form action="{{ url_for('clear_answer_key') }}" method="POST" class="d-inline">
+                <div class="d-flex gap-2 mt-2 mt-sm-0 w-100 w-sm-auto justify-content-center">
+                    <form action="{{ url_for('clear_answer_key') }}" method="POST" class="d-inline w-100 text-center">
                         <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
-                        <button type="submit" class="btn btn-danger btn-sm rounded-pill px-3" {% if keys|length==0
-                            %}disabled{% endif %} onclick="return confirm('Clear ALL answers for this subject?')">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3 w-100 w-sm-auto" {%
+                            if keys|length==0 %}disabled{% endif %}
+                            onclick="return confirm('Clear ALL answers for this subject?')">
                             <i class="bi bi-trash-fill me-1"></i> Clear Subject
                         </button>
                     </form>
                 </div>
                 {% endif %}
             </div>
-            <div class="card-body" style="max-height: 80vh; overflow-y: auto;">
+            <div class="card-body custom-scrollbar" style="max-height: 80vh; overflow-y: auto;">
                 {% if selected_subject_id %}
-                <div class="row g-2">
+                <div class="row g-3">
                     {% for key in keys %}
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                        <div class="answer-bubble-card p-2 text-center shadow-sm">
-                            <div class="q-num text-muted small">Q{{ key.question_number }}</div>
-                            <div class="ans-val fw-bold text-primary fs-4">{{ key.correct_option }}</div>
+                        <div
+                            class="answer-bubble-card p-3 text-center shadow-sm h-100 position-relative border border-secondary rounded-4">
+                            <div class="q-num text-muted small pb-2 mb-2 border-bottom border-secondary">Q{{
+                                key.question_number }}</div>
+                            <div class="ans-val fw-bold fs-3" style="color: var(--primary-glow)">{{ key.correct_option
+                                }}</div>
                         </div>
                     </div>
                     {% else %}
                     <div class="col-12">
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-clipboard2-x fs-1 d-block mb-3 text-warning"></i>
-                            <p class="fs-5">No answers added yet for this subject.</p>
-                            <p>Use the "Upload Answer Key Image" or manual forms on the left.</p>
+                        <div class="text-center py-5">
+                            <i class="bi bi-clipboard2-x text-muted opacity-50 display-1 d-block mb-3"></i>
+                            <h4 class="text-white">No answers added yet.</h4>
+                            <p class="text-muted">Use the "Upload Answer Key Image" or manual forms to begin.</p>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="text-center py-5">
-                    <div class="p-5 border-2 border-dashed rounded-4 bg-glass-dark">
-                        <i class="bi bi-folder-symlink fs-1 d-block mb-3 text-primary animate-pulse"></i>
-                        <h3 class="fw-bold">Welcome to Answer Key Center</h3>
-                        <p class="text-muted fs-5">Please select a subject from the left panel to manage its answer key.
+                <div class="text-center py-5 h-100 d-flex flex-column justify-content-center">
+                    <div class="p-5 border border-dashed border-secondary rounded-4 bg-glass-dark mx-auto"
+                        style="max-width: 500px;">
+                        <i
+                            class="bi bi-folder-symlink display-1 d-block mb-3 text-primary animate-pulse opacity-75"></i>
+                        <h3 class="fw-bold text-white">Answer Key Center</h3>
+                        <p class="text-muted fs-6 mb-4">Please select a subject from the left panel to manage its answer
+                            key.
                         </p>
-                        <div class="mt-4">
-                            <i class="bi bi-arrow-left-circle-fill me-2 fs-4 text-info"></i>
-                            <span>Look at "Manage Subjects" on the left</span>
+                        <div class="d-flex align-items-center justify-content-center gap-2 text-info">
+                            <i class="bi bi-arrow-left-circle-fill fs-5"></i>
+                            <span class="fw-medium">Look at "Manage Subjects"</span>
                         </div>
                     </div>
                 </div>
                 {% endif %}
             </div>
-            <div class="card-footer border-0 text-center py-3">
-                <span class="badge rounded-pill bg-info text-dark">Total Questions: {{ keys|length }}</span>
+            <div class="card-footer bg-transparent border-0 text-center py-3">
+                <span
+                    class="badge rounded-pill bg-primary bg-opacity-25 text-primary fs-6 px-3 py-2 border border-primary border-opacity-50">Total
+                    Questions Checked: {{ keys|length }}</span>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Styling for Answer Key Bubble */
     .answer-bubble-card {
-        background: rgba(15, 23, 42, 0.4);
-        border-radius: 12px;
-        border: 1px solid var(--glass-border);
-        transition: all 0.3s ease;
+        background: rgba(30, 41, 59, 0.4);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .answer-bubble-card:hover {
-        transform: translateY(-5px);
-        background: var(--primary-glow);
-        border-color: transparent;
+        transform: translateY(-8px) scale(1.05);
+        background: rgba(14, 165, 233, 0.1);
+        /* light distinct glow */
+        border-color: var(--primary-glow) !important;
+        box-shadow: 0 10px 20px rgba(14, 165, 233, 0.15) !important;
     }
 
-    .q-num {
-        border-bottom: 1px solid var(--glass-border);
-        margin-bottom: 5px;
-        font-weight: 500;
-        color: var(--text-dim);
+    /* Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
     }
 
-    .ans-val {
-        color: var(--primary-glow);
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 4px;
     }
 
-    .answer-bubble-card:hover .q-num,
-    .answer_bubble_card:hover .ans-val {
-        color: #0f172a !important;
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
     }
 </style>
 {% endblock %}
